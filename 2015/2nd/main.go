@@ -4,45 +4,57 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 )
 
-func parseDimensions(dimensionsLabel string) (l, w, h int) {
-	strings.Split(dimensionsLabel, "x")
-	panic("NotImplemented")
-	return dimensions[:]
-}
-
-func calculateSingleBoxResources(l, w, h int) (surface, slack int) {
-	lw, wh, hl := l*w, w*h, h*l
-	surface = (lw + wh + hl) << 1
-	slack = min(lw, wh, hl)
-	return
-}
-
-func CalculateResourcesNeeded(inputFile string) (int, error) {
-	file, err := os.Open(inputFile)
+func check(err error) {
 	if err != nil {
-		return -1, err
+		fmt.Println(err)
+		panic(err)
 	}
-	defer file.Close()
+}
 
-	accumulator := 0
+func parseDimensions(dimensionsLabel string) (l, w, h int) {
+	separateDimensions := strings.Split(dimensionsLabel, "x")
 
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-		fmt.Println(line)
-	}
+	l, err := strconv.Atoi(separateDimensions[0])
+	check(err)
 
-	if err := scanner.Err(); err != nil {
-		return -1, err
-	}
+	w, err = strconv.Atoi(separateDimensions[1])
+	check(err)
 
-	return 0, nil
+	h, err = strconv.Atoi(separateDimensions[2])
+	check(err)
+
+	return
 }
 
 func main() {
 
-	resourcesNeeded := CalculateResourcesNeeded("example.txt")
+	// Opening the input file.
+	file, err := os.Open("dimensions.txt")
+	check(err)
+	defer file.Close()
+
+	// Main calculation.
+	wrappingPaperSurface, ribbonLength := 0, 0
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		l, w, h := parseDimensions(line)
+
+		// Ribbon length = Smallest Side Perimeter + Volume
+		ribbonLength += (min(l+w, w+h, h+l) << 1) + l*w*h
+
+		// Wrapping paper surface = Box surface + Slack (Smallest Side Area)
+		lw, wh, hl := l*w, w*h, h*l
+		wrappingPaperSurface += ((lw + wh + hl) << 1) + min(lw, wh, hl)
+	}
+
+	// Checking if there was error while reading the file.
+	check(scanner.Err())
+
+	fmt.Printf("Wrapping paper length: %v [feet^2],\nRibbon length: %v [feet]", wrappingPaperSurface, ribbonLength)
 }
