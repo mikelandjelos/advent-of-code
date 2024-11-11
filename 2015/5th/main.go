@@ -57,6 +57,7 @@ func IsNiceNewRules(input string) bool {
 	}
 
 	twoLettersPattern := false
+	letterInMiddle := false
 
 	for i := 0; i < len(input)-2; i++ {
 		// First condition.
@@ -65,7 +66,11 @@ func IsNiceNewRules(input string) bool {
 		}
 
 		// Second condition.
-		if input[i] == input[i+2] && twoLettersPattern {
+		if !letterInMiddle && input[i] == input[i+2] {
+			letterInMiddle = true
+		}
+
+		if twoLettersPattern && letterInMiddle {
 			return true
 		}
 	}
@@ -77,7 +82,7 @@ func main() {
 	now := time.Now()
 
 	defer func(startTime time.Time) {
-		fmt.Printf("Time elapsed: %v", time.Since(startTime))
+		fmt.Printf("Time elapsed: %v\n", time.Since(startTime))
 	}(now)
 
 	countNiceStrings := func(inputFile string, isNice func(string) bool) int {
@@ -100,6 +105,6 @@ func main() {
 		return niceStringCount
 	}
 
-	go fmt.Println("Number of nice strings: ", countNiceStrings("input.txt", IsNice))
-	go fmt.Println("Number of nice strings: ", countNiceStrings("input.txt", IsNiceNewRules))
+	fmt.Println("Number of nice strings: ", countNiceStrings("input.txt", IsNice))
+	fmt.Println("Number of nice strings: ", countNiceStrings("input.txt", IsNiceNewRules))
 }
