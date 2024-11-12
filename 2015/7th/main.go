@@ -3,14 +3,11 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"os"
 	"regexp"
 	"strconv"
 	"time"
 )
-
-var logger = log.Default()
 
 func check(err error) {
 	if err != nil {
@@ -114,7 +111,7 @@ func SimulateCircuit(circuit map[string][]string) map[string]uint16 {
 		// TODO: No way to find if there is a loop - this will just go endlessly if there is one.
 		lifo.Push(label)
 		for !lifo.Empty() {
-			label, err := lifo.Pop()
+			label, err := lifo.Peek()
 			check(err)
 
 			expressionTokens := circuit[label]
@@ -126,27 +123,29 @@ func SimulateCircuit(circuit map[string][]string) map[string]uint16 {
 				if value, ok := signals[labelOrLiteral]; ok {
 					// Label, already calculated.
 					signals[label] = value
+					lifo.Pop()
 				} else if literalCommonFormat.MatchString(labelOrLiteral) {
 					// Literal.
 					value, err := strconv.Atoi(labelOrLiteral)
 					check(err)
 					signals[label] = Signal(value)
+					lifo.Pop()
 				} else {
 					// Label, still not calculated.
-					lifo.Push(label)
 					lifo.Push(labelOrLiteral)
 				}
 			case 2: // Unary expression.
 				operator, operand := expressionTokens[0], expressionTokens[1]
 				if value, ok := signals[operand]; ok {
 					signals[label] = Operators[operator](value)
+					lifo.Pop()
 				} else if literalCommonFormat.MatchString(operand) {
 					// Literal.
 					value, err := strconv.Atoi(operand)
 					check(err)
 					signals[label] = Signal(value)
+					lifo.Pop()
 				} else {
-					lifo.Push(label)
 					lifo.Push(operand)
 				}
 			case 3: // Binary expression.
@@ -181,8 +180,7 @@ func SimulateCircuit(circuit map[string][]string) map[string]uint16 {
 
 				if operandsReady == 2 {
 					signals[label] = Operators[operator](leftValue, rightValue)
-				} else {
-					lifo.Push(label)
+					lifo.Pop()
 				}
 			}
 		}
@@ -194,18 +192,18 @@ func SimulateCircuit(circuit map[string][]string) map[string]uint16 {
 func main() {
 	now := time.Now()
 	defer func() {
-		fmt.Printf("Time of execution: %v", time.Since(now))
+		fmt.Printf("\nTime of execution: %v", time.Since(now))
 	}()
 
 	circuit := AssembleCircuit("assembly.txt")
-	results := SimulateCircuit(circuit)
+	signals := SimulateCircuit(circuit)
 
-	resultLabel := "i"
-	resultValue, exists := results[resultLabel]
+	label := "a"
+	value, exists := signals[label]
 
 	if !exists {
-		panic(fmt.Errorf("signal labeled `%v` doesn't exist", resultLabel))
+		panic(fmt.Errorf("signal labeled `%v` doesn't exist", label))
 	}
 
-	logger.Printf("`%v` -> %v", resultLabel, resultValue)
+	fmt.Printf("`%v` -> %v", label, value)
 }
