@@ -7,8 +7,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
-
-	"github.com/gookit/goutil/dump"
+	"time"
 )
 
 var logger = log.Default()
@@ -62,7 +61,6 @@ func AssembleCircuit(instructionsFile string) map[string][]string {
 
 	for scanner.Scan() {
 		assemblyInstruction := scanner.Text()
-		logger.Printf("Instruction: %v\n", assemblyInstruction)
 
 		// Separating expression (left) and signal label (right) side.
 		tokens := assemblyInstructionCommonFormat.FindStringSubmatch(assemblyInstruction)
@@ -119,8 +117,6 @@ func SimulateCircuit(circuit map[string][]string) map[string]uint16 {
 			label, err := lifo.Pop()
 			check(err)
 
-			dump.P(signals)
-
 			expressionTokens := circuit[label]
 
 			switch len(expressionTokens) {
@@ -137,7 +133,7 @@ func SimulateCircuit(circuit map[string][]string) map[string]uint16 {
 					signals[label] = Signal(value)
 				} else {
 					// Label, still not calculated.
-					lifo.Peek(label)
+					lifo.Push(label)
 					lifo.Push(labelOrLiteral)
 				}
 			case 2: // Unary expression.
@@ -155,18 +151,52 @@ func SimulateCircuit(circuit map[string][]string) map[string]uint16 {
 				}
 			case 3: // Binary expression.
 				operator, leftOperand, rightOperand := expressionTokens[0], expressionTokens[1], expressionTokens[2]
+
+				leftValue, leftOk := signals[leftOperand]
+				operandsReady := 0
+				if leftOk {
+					operandsReady++
+				} else if literalCommonFormat.MatchString(leftOperand) {
+					// Literal.
+					value, err := strconv.Atoi(leftOperand)
+					check(err)
+					leftValue = uint16(value)
+					operandsReady++
+				} else {
+					lifo.Push(leftOperand)
+				}
+
+				rightValue, rightOk := signals[rightOperand]
+				if rightOk {
+					operandsReady++
+				} else if literalCommonFormat.MatchString(rightOperand) {
+					// Literal.
+					value, err := strconv.Atoi(rightOperand)
+					check(err)
+					rightValue = uint16(value)
+					operandsReady++
+				} else {
+					lifo.Push(rightOperand)
+				}
+
+				if operandsReady == 2 {
+					signals[label] = Operators[operator](leftValue, rightValue)
+				} else {
+					lifo.Push(label)
+				}
 			}
 		}
 	}
-
-	dump.P(signals)
-
-	panic("Not implemented yet.")
 
 	return signals
 }
 
 func main() {
+	now := time.Now()
+	defer func() {
+		fmt.Printf("Time of execution: %v", time.Since(now))
+	}()
+
 	circuit := AssembleCircuit("assembly.txt")
 	results := SimulateCircuit(circuit)
 
@@ -174,7 +204,7 @@ func main() {
 	resultValue, exists := results[resultLabel]
 
 	if !exists {
-		panic(fmt.Errorf("Signal `%v` doesn't exist!", resultLabel))
+		panic(fmt.Errorf("signal labeled `%v` doesn't exist", resultLabel))
 	}
 
 	logger.Printf("`%v` -> %v", resultLabel, resultValue)
