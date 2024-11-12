@@ -199,11 +199,12 @@ func main() {
 	signals := SimulateCircuit(circuit)
 
 	label := "a"
-	value, exists := signals[label]
+	value := signals[label]
 
-	if !exists {
-		panic(fmt.Errorf("signal labeled `%v` doesn't exist", label))
-	}
+	// Overriding circuit.
+	circuit["b"] = []string{strconv.Itoa(int(value))}
+	signals = SimulateCircuit(circuit)
+	value = signals[label]
 
-	fmt.Printf("`%v` -> %v", label, value)
+	fmt.Printf("New Value: `%v` -> %v", label, value)
 }
